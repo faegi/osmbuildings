@@ -17,7 +17,6 @@ exports.srcFiles = [
   srcPath + '/lib/SunPosition.js',
   srcPath + '/GeoJSON.js',
   srcPath + '/variables.js',
-  srcPath + '/geometry.js',
   srcPath + '/functions.js',
   srcPath + '/provider/BLDGS.js',
   srcPath + '/Data.js',

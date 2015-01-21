@@ -58,7 +58,7 @@ var Shadows = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 
@@ -100,7 +100,7 @@ var Shadows = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 

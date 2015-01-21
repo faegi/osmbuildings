@@ -30,7 +30,7 @@ var Simplified = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 

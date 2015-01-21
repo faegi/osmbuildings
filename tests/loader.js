@@ -1,3 +1,4 @@
+
 var baseUrl = location.protocol +'//'+ location.host + location.pathname.replace(/[^\/]+$/, '') + '../';
 
 function loadFile(url) {

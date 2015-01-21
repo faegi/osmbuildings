@@ -27,11 +27,7 @@ function setZoom(z) {
   ZOOM = z;
   MAP_SIZE = MAP_TILE_SIZE <<ZOOM;
 
-  var center = pixelToGeo(ORIGIN_X+CENTER_X, ORIGIN_Y+CENTER_Y);
-  var a = geoToPixel(center.latitude, 0);
-  var b = geoToPixel(center.latitude, 1);
-  PIXEL_PER_DEG = b.x-a.x;
-
+  ZOOM_SCALE = 6 / pow(2, ZOOM-MIN_ZOOM); // TODO: consider using HEIGHT / (global.devicePixelRatio || 1)
   ZOOM_FACTOR = pow(0.95, ZOOM-MIN_ZOOM);
 
   WALL_COLOR_STR = ''+ WALL_COLOR.alpha(ZOOM_FACTOR);

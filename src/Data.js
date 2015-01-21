@@ -1,174 +1,154 @@
 
 var Data = {
 
-  loadedItems: {}, // maintain a list of cached items in order to avoid duplicates on tile borders
+  tiles: {},
+  duplicates: {}, // maintain a list of items in order to avoid duplicates on tile borders
   items: [],
 
-  getPixelFootprint: function(buffer) {
-    var footprint = new Int32Array(buffer.length),
-      px;
+  init: function(provider) {
+    this.provider = provider || new BLDGS({ key: DATA_KEY });
+    this.update();
+  },
 
-    for (var i = 0, il = buffer.length-1; i < il; i+=2) {
-      px = geoToPixel(buffer[i], buffer[i+1]);
-      footprint[i]   = px.x;
-      footprint[i+1] = px.y;
-    }
+//  set: function(data) {
+//    this.isStatic = true;
+//    this.items = [];
+//    this.duplicates = {};
+//    HitAreas.reset();
+//    this._staticData = data;
+//    this.addRenderItems(this._staticData, true);
+//  },
 
-    footprint = simplifyPolygon(footprint);
-    if (footprint.length < 8) { // 3 points & end==start (*2)
+  update: function() {
+    this.items = [];
+    this.duplicates = {};
+    HitAreas.reset();
+    this.provider.abortAll();
+
+    if (ZOOM < MIN_ZOOM) {
       return;
     }
 
-    return footprint;
+//    if (this.isStatic && this._staticData) {
+//      this.addRenderItems(this._staticData);
+//      return;
+//    }
+
+    var
+      tileSize = this.provider.tileSize,
+      minX = ORIGIN_X/tileSize <<0,
+      minY = ORIGIN_Y/tileSize <<0,
+      maxX = ceil((ORIGIN_X+WIDTH) /tileSize),
+      maxY = ceil((ORIGIN_Y+HEIGHT)/tileSize),
+      x, y;
+
+    var self = this;
+    var key;
+    for (y = minY; y <= maxY; y++) {
+      for (x = minX; x <= maxX; x++) {
+        key = [x, y].join(',');
+        if (this.tiles[ZOOM] && this.tiles[ZOOM][key]) {
+          setTimeout(function() {
+            self.processTiles();
+          }, 1);
+          continue;
+        }
+
+        this.provider.getTile(x, y, ZOOM, function(data) {
+          var key = [x, y].join(',');
+          if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
+          self.tiles[ZOOM][key] = GeoJSON.import(data);
+          self.processTiles();
+        });
+      }
+    }
+
+    this.dropInvisibleTiles();
   },
 
-  resetItems: function() {
-    this.items = [];
-    this.loadedItems = {};
-    HitAreas.reset();
-  },
-
-  addRenderItems: function(data, allAreNew) {
-    var item, scaledItem, id;
-    var geojson = GeoJSON.read(data);
-    for (var i = 0, il = geojson.length; i < il; i++) {
-      item = geojson[i];
-      id = item.id || [item.footprint[0], item.footprint[1], item.height, item.minHeight].join(',');
-      if (!this.loadedItems[id]) {
-        if ((scaledItem = this.scale(item))) {
-          scaledItem.scale = allAreNew ? 0 : 1;
-          this.items.push(scaledItem);
-          this.loadedItems[id] = 1;
+  processTiles: function() {
+    var tiles = this.tiles[ZOOM], items;
+    for (var key in tiles) {
+      items = tiles[key];
+      for (var i = 0, il = items.length; i < il; i++) {
+        if (!this.duplicates[items[i].id]) {
+//        items[i].scale = allAreNew ? 0 : 1;
+          this.items.push(items[i]);
+          this.duplicates[items[i].id] = 1;
         }
       }
     }
     fadeIn();
   },
 
-  scale: function(item) {
-    var
-      res = {},
-      // TODO: calculate this on zoom change only
-      zoomScale = 6 / pow(2, ZOOM-MIN_ZOOM); // TODO: consider using HEIGHT / (global.devicePixelRatio || 1)
-
-    if (item.id) {
-      res.id = item.id;
-    }
-
-    res.height = min(item.height/zoomScale, MAX_HEIGHT);
-
-    res.minHeight = isNaN(item.minHeight) ? 0 : item.minHeight / zoomScale;
-    if (res.minHeight > MAX_HEIGHT) {
-      return;
-    }
-
-    res.footprint = this.getPixelFootprint(item.footprint);
-    if (!res.footprint) {
-      return;
-    }
-    res.center = getCenter(res.footprint);
-
-    if (item.radius) {
-      res.radius = item.radius*PIXEL_PER_DEG;
-    }
-    if (item.shape) {
-      res.shape = item.shape;
-    }
-    if (item.roofShape) {
-      res.roofShape = item.roofShape;
-    }
-    if ((res.roofShape === 'cone' || res.roofShape === 'dome') && !res.shape && isRotational(res.footprint)) {
-      res.shape = 'cylinder';
-    }
-
-    if (item.holes) {
-      res.holes = [];
-      var innerFootprint;
-      for (var i = 0, il = item.holes.length; i < il; i++) {
-        // TODO: simplify
-        if ((innerFootprint = this.getPixelFootprint(item.holes[i]))) {
-          res.holes.push(innerFootprint);
-        }
+  dropInvisibleTiles: function() {
+    for (var zoom in this.tiles) {
+      if (zoom !== ZOOM) {
+        this.tiles[zoom] = []; // not deleting - for performance
       }
     }
 
-    var color;
-
-    if (item.wallColor) {
-      if ((color = Color.parse(item.wallColor))) {
-        color = color.alpha(ZOOM_FACTOR);
-        res.altColor  = ''+ color.lightness(0.8);
-        res.wallColor = ''+ color;
-      }
-    }
-
-    if (item.roofColor) {
-      if ((color = Color.parse(item.roofColor))) {
-        res.roofColor = ''+ color.alpha(ZOOM_FACTOR);
-      }
-    }
-
-    if (item.relationId) {
-      res.relationId = item.relationId;
-    }
-    res.hitColor = HitAreas.idToColor(item.relationId || item.id);
-
-    res.roofHeight = isNaN(item.roofHeight) ? 0 : item.roofHeight/zoomScale;
-
-    if (res.height+res.roofHeight <= res.minHeight) {
-      return;
-    }
-
-    return res;
-  },
-
-  set: function(data) {
-    this.isStatic = true;
-    this.resetItems();
-    this._staticData = data;
-    this.addRenderItems(this._staticData, true);
-  },
-
-  load: function(provider) {
-    this.provider = provider || new BLDGS({ key: DATA_KEY });
-    this.update();
-  },
-
-  update: function() {
-    this.resetItems();
-
-    if (ZOOM < MIN_ZOOM) {
-      return;
-    }
-
-    if (this.isStatic && this._staticData) {
-      this.addRenderItems(this._staticData);
-      return;
-    }
-
-    if (!this.provider) {
-      return;
-    }
+    var tileSize = this.provider.tileSize;
+    var viewport = {
+      minX: ORIGIN_X,
+      maxX: ORIGIN_X+WIDTH,
+      minY: ORIGIN_Y,
+      maxY: ORIGIN_Y+HEIGHT
+    };
 
     var
-      tileZoom = 16,
-      tileSize = 256,
-      zoomedTileSize = ZOOM > tileZoom ? tileSize <<(ZOOM-tileZoom) : tileSize >>(tileZoom-ZOOM),
-      minX = ORIGIN_X/zoomedTileSize <<0,
-      minY = ORIGIN_Y/zoomedTileSize <<0,
-      maxX = ceil((ORIGIN_X+WIDTH) /zoomedTileSize),
-      maxY = ceil((ORIGIN_Y+HEIGHT)/zoomedTileSize),
-      x, y;
+      tiles = this.tiles[ZOOM],
+      pos, x, y;
+    for (var key in tiles) {
+      tile = tiles[key];
+      pos = key.split(',');
+      x = pos.x*tileSize;
+      y = pos.y*tileSize;
 
-    var scope = this;
-    function callback(json) {
-      scope.addRenderItems(json);
-    }
-
-    for (y = minY; y <= maxY; y++) {
-      for (x = minX; x <= maxX; x++) {
-        this.provider.getTile(x, y, tileZoom, callback);
+      if (!intersects(x,          y,          viewport) &&
+          !intersects(x+tileSize, y,          viewport) &&
+          !intersects(x,          y+tileSize, viewport) &&
+          !intersects(x+tileSize, y+tileSize, viewport)
+      ) {
+        this.tiles[ZOOM][key] = null; // not deleting - for performance
       }
     }
   }
 };
+
+/***
+function distance(a, b) {
+  var dx = a.x-b.x, dy = a.y-b.y;
+  return dx*dx + dy*dy;
+}
+
+var loadTilesForBBox = function(x, y, w, h, z, callback) {
+  var
+    tileSize = this._scale(z),
+    minX = x/tileSize <<0,
+    minY = y/tileSize <<0,
+    maxX = Math.ceil((x+w)/tileSize),
+    maxY = Math.ceil((y+h)/tileSize),
+    tx, ty,
+    queue = [];
+
+  for (ty = minY; ty <= maxY; ty++) {
+    for (tx = minX; tx <= maxX; tx++) {
+      queue.push({ x:tx, y:ty, z:z });
+    }
+  }
+
+  var center = { x: x+(w-tileSize)/2, y: y+(h-tileSize)/2 };
+  queue.sort(function(a, b) {
+    return distance(a, center) - distance(b, center);
+  });
+
+  for (var i = 0, il = queue.length; i < il; i++) {
+    this.loadTile(queue[i].x, queue[i].y, queue[i].z, (function(tile) {
+      return function(data) {
+        callback(data, tile.x, tile.y, tile.z);
+      };
+    }(queue[i])));
+  }
+};
+***/

@@ -1,4 +1,11 @@
 
+function getDistance(p1, p2) {
+  var
+    dx = p1.x-p2.x,
+    dy = p1.y-p2.y;
+  return dx*dx + dy*dy;
+}
+
 function rad(deg) {
   return deg * PI / 180;
 }
@@ -32,16 +39,23 @@ function fromRange(sVal, sMin, sMax, dMin, dMax) {
   return min(max(dMin + rel*range, dMin), dMax);
 }
 
-function isVisible(polygon) {
-   var
-    maxX = WIDTH+ORIGIN_X,
-    maxY = HEIGHT+ORIGIN_Y;
+function isVisible(bbox) {
+   var viewport = {
+    minX: ORIGIN_X,
+    maxX: ORIGIN_X+WIDTH,
+    minY: ORIGIN_Y,
+    maxY: ORIGIN_Y+HEIGHT
+  };
 
   // TODO: checking footprint is sufficient for visibility - NOT VALID FOR SHADOWS!
-  for (var i = 0, il = polygon.length-3; i < il; i+=2) {
-    if (polygon[i] > ORIGIN_X && polygon[i] < maxX && polygon[i+1] > ORIGIN_Y && polygon[i+1] < maxY) {
-      return true;
-    }
-  }
-  return false;
+  return (
+    intersects(bbox.minX, bbox.minY, viewport) ||
+    intersects(bbox.maxX, bbox.minY, viewport) ||
+    intersects(bbox.maxX, bbox.maxY, viewport) ||
+    intersects(bbox.minX, bbox.maxY, viewport)
+  );
+}
+
+function intersects(x, y, bbox) {
+  return (x > bbox.minX && x < bbox.maxX && y > bbox.minY && y < bbox.maxY);
 }
