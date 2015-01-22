@@ -16,9 +16,15 @@
   "scripts": {},
   "dependencies": {},
   "devDependencies": {
+    "BLDGS Provider": "git+https://github.com/OSMBuildings/bldgs-provider",
     "Color": "git+https://github.com/kekscom/Color.js",
     "jshint": "~1.1.0",
-	  "closure-compiler": "~0.2.0"
+	  "closure-compiler": "~0.2.0",
+
+    "grunt": "~0.4.4",
+    "grunt-contrib-concat": "~0.4.0",
+    "grunt-contrib-uglify": "~0.4.0",
+    "grunt-contrib-jshint": "~0.11.0"
   },
   "optionalDependencies": {}
 }

@@ -107,11 +107,6 @@ var GeoJSON = (function() {
       case 'dome':
         item.roofShape = prop.roofShape;
         item.isRotational = true;
-///////###############
-#ä
-        if (!item.shape && isRotational(item.footprint, bbox)) {
-          item.shape = 'cylinder';
-        }
       break;
 
       case 'pyramid':
@@ -193,7 +188,7 @@ var GeoJSON = (function() {
     return res;
   }
 
-  function isRotational(polygon, bbox) {
+  function geometryIsRotational(polygon, bbox) {
     var length = polygon.length;
     if (length < 16) {
       return false;
@@ -275,6 +270,11 @@ var GeoJSON = (function() {
 
             item.bbox = bbox = getBBox(item.footprint);
             item.center = { x:bbox.minX + (bbox.maxX-bbox.minX)/2 <<0, y:bbox.minY + (bbox.maxY-bbox.minY)/2 <<0 };
+
+            if (!item.shape && geometryIsRotational(item.footprint, item.bbox)) {
+              item.isRotational = true;
+              item.shape = 'cylinder';
+            }
 
             if (item.isRotational) {
               item.radius = (bbox.maxX-bbox.minX)/2;

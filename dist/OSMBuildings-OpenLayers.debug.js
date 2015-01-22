@@ -83,7 +83,7 @@ function hue2rgb(p, q, t) {
   return p;
 }
 
-function limit(v, max) {
+function clamp(v, max) {
   return Math.min(max, Math.max(0, v));
 }
 
@@ -110,18 +110,29 @@ Color.parse = function(str) {
     r = parseInt(m[1], 16);
     g = parseInt(m[2], 16);
     b = parseInt(m[3], 16);
-} else if ((m = str.match(/rgba?\((\d+)\D+(\d+)\D+(\d+)(\D+([\d.]+))?\)/))) {
+  } else if ((m = str.match(/rgba?\((\d+)\D+(\d+)\D+(\d+)(\D+([\d.]+))?\)/))) {
     r = parseInt(m[1], 10);
     g = parseInt(m[2], 10);
     b = parseInt(m[3], 10);
     a = m[4] ? parseFloat(m[5]) : 1;
-} else {
-  return;
+  } else {
+    return;
   }
 
-  r /= 255;
-  g /= 255;
-  b /= 255;
+  return this.fromRGBA(r, g, b, a);
+};
+
+Color.fromRGBA = function(r, g, b, a) {
+  if (typeof r === 'object') {
+    g = r.g / 255;
+    b = r.b / 255;
+    a = r.a;
+    r = r.r / 255;
+  } else {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+  }
 
   var
     max = Math.max(r, g, b),
@@ -148,10 +159,10 @@ Color.prototype = {
 
   toRGBA: function() {
     var
-      h = limit(this.H, 360),
-      s = limit(this.S, 1),
-      l = limit(this.L, 1),
-      rgba = { a: limit(this.A, 1) };
+      h = clamp(this.H, 360),
+      s = clamp(this.S, 1),
+      l = clamp(this.L, 1),
+      rgba = { a: clamp(this.A, 1) };
 
     // achromatic
     if (s === 0) {
@@ -287,52 +298,52 @@ var GeoJSON = (function() {
   var METERS_PER_LEVEL = 3;
 
   var materialColors = {
-    brick:'#cc7755',
-    bronze:'#ffeecc',
-    canvas:'#fff8f0',
-    concrete:'#999999',
-    copper:'#a0e0d0',
-    glass:'#e8f8f8',
-    gold:'#ffcc00',
-    plants:'#009933',
-    metal:'#aaaaaa',
-    panel:'#fff8f0',
-    plaster:'#999999',
-    roof_tiles:'#f08060',
-    silver:'#cccccc',
-    slate:'#666666',
-    stone:'#996666',
-    tar_paper:'#333333',
-    wood:'#deb887'
+    brick: '#cc7755',
+    bronze: '#ffeecc',
+    canvas: '#fff8f0',
+    concrete: '#999999',
+    copper: '#a0e0d0',
+    glass: '#e8f8f8',
+    gold: '#ffcc00',
+    plants: '#009933',
+    metal: '#aaaaaa',
+    panel: '#fff8f0',
+    plaster: '#999999',
+    roof_tiles: '#f08060',
+    silver: '#cccccc',
+    slate: '#666666',
+    stone: '#996666',
+    tar_paper: '#333333',
+    wood: '#deb887'
   };
 
   var baseMaterials = {
-    asphalt:'tar_paper',
-    bitumen:'tar_paper',
-    block:'stone',
-    bricks:'brick',
-    glas:'glass',
-    glassfront:'glass',
-    grass:'plants',
-    masonry:'stone',
-    granite:'stone',
-    panels:'panel',
-    paving_stones:'stone',
-    plastered:'plaster',
-    rooftiles:'roof_tiles',
-    roofingfelt:'tar_paper',
-    sandstone:'stone',
-    sheet:'canvas',
-    sheets:'canvas',
-    shingle:'tar_paper',
-    shingles:'tar_paper',
-    slates:'slate',
-    steel:'metal',
-    tar:'tar_paper',
-    tent:'canvas',
-    thatch:'plants',
-    tile:'roof_tiles',
-    tiles:'roof_tiles'
+    asphalt: 'tar_paper',
+    bitumen: 'tar_paper',
+    block: 'stone',
+    bricks: 'brick',
+    glas: 'glass',
+    glassfront: 'glass',
+    grass: 'plants',
+    masonry: 'stone',
+    granite: 'stone',
+    panels: 'panel',
+    paving_stones: 'stone',
+    plastered: 'plaster',
+    rooftiles: 'roof_tiles',
+    roofingfelt: 'tar_paper',
+    sandstone: 'stone',
+    sheet: 'canvas',
+    sheets: 'canvas',
+    shingle: 'tar_paper',
+    shingles: 'tar_paper',
+    slates: 'slate',
+    steel: 'metal',
+    tar: 'tar_paper',
+    tent: 'canvas',
+    thatch: 'plants',
+    tile: 'roof_tiles',
+    tiles: 'roof_tiles'
   };
   // cardboard
   // eternit
@@ -348,21 +359,27 @@ var GeoJSON = (function() {
   }
 
   function alignProperties(prop) {
-    var item = {};
-
     prop = prop || {};
 
-    item.height    = prop.height    || (prop.levels   ? prop.levels  *METERS_PER_LEVEL : DEFAULT_HEIGHT);
-    item.minHeight = prop.minHeight || (prop.minLevel ? prop.minLevel*METERS_PER_LEVEL : 0);
+    var item = {};
 
+    var height    = prop.height    || (prop.levels   ? prop.levels  *METERS_PER_LEVEL : DEFAULT_HEIGHT);
+    var minHeight = prop.minHeight || (prop.minLevel ? prop.minLevel*METERS_PER_LEVEL : 0);
+
+    item.height    = min(height/ZOOM_SCALE, MAX_HEIGHT);
+    item.minHeight = minHeight/ZOOM_SCALE;
+
+    var color;
     var wallColor = prop.material ? getMaterialColor(prop.material) : (prop.wallColor || prop.color);
-    if (wallColor) {
-      item.wallColor = wallColor;
+    if (wallColor && (color = Color.parse(wallColor))) {
+      color = color.alpha(ZOOM_FACTOR);
+      item.altColor  = ''+ color.lightness(0.8);
+      item.wallColor = ''+ color;
     }
 
     var roofColor = prop.roofMaterial ? getMaterialColor(prop.roofMaterial) : prop.roofColor;
-    if (roofColor) {
-      item.roofColor = roofColor;
+    if (roofColor && (color = Color.parse(roofColor))) {
+      item.roofColor = ''+ color.alpha(ZOOM_FACTOR);
     }
 
     switch (prop.shape) {
@@ -392,10 +409,14 @@ var GeoJSON = (function() {
     }
 
     if (item.roofShape && prop.roofHeight) {
-      item.roofHeight = prop.roofHeight;
+      item.roofHeight = prop.roofHeight/ZOOM_SCALE;
       item.height = max(0, item.height-item.roofHeight);
     } else {
       item.roofHeight = 0;
+    }
+
+    if (item.minHeight > item.height) {
+      return;
     }
 
     return item;
@@ -432,28 +453,75 @@ var GeoJSON = (function() {
       default: return [];
     }
 
-    var
-      j, jl,
-      p, lat = 1, lon = 0,
-      outer = [], inner = [];
+    var outer = projectPolygon(polygon[0]);
 
-    p = polygon[0];
-    for (i = 0, il = p.length; i < il; i++) {
-      outer.push(p[i][lat], p[i][lon]);
+    if (outer) {
+      var inner = [];
+      for (i = 1, il = polygon.length; i < il; i++) {
+        inner[i] = projectPolygon(polygon[i]);
+      }
+
+      return [{
+        outer: outer,
+        inner: inner.length ? inner : null
+      }];
+    }
+  }
+
+  function projectPolygon(polygon) {
+    var res = new Int32Array(polygon.length), px;
+    for (var i = 0, il = polygon.length; i < il; i++) {
+      px = geoToPixel(polygon[i][1], polygon[i][0]);
+      res.push(px.x, px.y);
     }
 
-    for (i = 0, il = polygon.length-1; i < il; i++) {
-      p = polygon[i+1];
-      inner[i] = [];
-      for (j = 0, jl = p.length; j < jl; j++) {
-        inner[i].push(p[j][lat], p[j][lon]);
+    if (res.length < 8) { // 3 points & end = start (*2)
+      return;
+    }
+
+    return res;
+  }
+
+  function geometryIsRotational(polygon, bbox) {
+    var length = polygon.length;
+    if (length < 16) {
+      return false;
+    }
+
+    var
+      i,
+      width  = bbox.maxX-bbox.minX,
+      height = bbox.maxY-bbox.minY,
+      ratio  = width/height;
+
+    if (ratio < 0.85 || ratio > 1.15) {
+      return false;
+    }
+
+    var
+      center = { x:bbox.minX + width/2, y:bbox.minY + height/2 },
+      radius = (width+height)/4,
+      sqRadius = radius*radius;
+
+    for (i = 0; i < length-1; i+=2) {
+      var dist = getDistance({ x:polygon[i], y:polygon[i+1] }, center);
+      if (dist/sqRadius < 0.8 || dist/sqRadius > 1.2) {
+        return false;
       }
     }
 
-    return [{
-      outer: outer,
-      inner: inner.length ? inner : null
-    }];
+    return true;
+  }
+
+  function getBBox(footprint) {
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var i = 0, il = footprint.length-3; i < il; i += 2) {
+      minX = min(minX, footprint[i]);
+      maxX = max(maxX, footprint[i]);
+      minY = min(minY, footprint[i+1]);
+      maxY = max(maxY, footprint[i+1]);
+    }
+    return { x:minX+(maxX-minX)/2 <<0, y:minY+(maxY-minY)/2 <<0 };
   }
 
   function clone(obj) {
@@ -467,7 +535,7 @@ var GeoJSON = (function() {
   }
 
   return {
-    read: function(geojson) {
+    import: function(geojson) {
       if (!geojson || geojson.type !== 'FeatureCollection') {
         return [];
       }
@@ -478,7 +546,7 @@ var GeoJSON = (function() {
         res = [],
         feature,
         geometries,
-        baseItem, item;
+        baseItem, item, bbox;
 
       for (i = 0, il = collection.length; i < il; i++) {
         feature = collection[i];
@@ -488,27 +556,38 @@ var GeoJSON = (function() {
         }
 
         baseItem = alignProperties(feature.properties);
-        geometries = getGeometries(feature.geometry);
 
-        for (j = 0, jl = geometries.length; j < jl; j++) {
-          item = clone(baseItem);
-          item.footprint = geometries[j].outer;
-          if (item.isRotational) {
-            item.radius = getLonDelta(item.footprint);
-          }
+        if ((geometries = getGeometries(feature.geometry))) {
+          for (j = 0, jl = geometries.length; j < jl; j++) {
+            item = clone(baseItem);
+            item.footprint = geometries[j].outer;
 
-          if (geometries[j].inner) {
-            item.holes = geometries[j].inner;
-          }
-          if (feature.id || feature.properties.id) {
-            item.id = feature.id || feature.properties.id;
-          }
+            item.bbox = bbox = getBBox(item.footprint);
+            item.center = { x:bbox.minX + (bbox.maxX-bbox.minX)/2 <<0, y:bbox.minY + (bbox.maxY-bbox.minY)/2 <<0 };
 
-          if (feature.properties.relationId) {
-            item.relationId = feature.properties.relationId;
-          }
+            if (!item.shape && geometryIsRotational(item.footprint, item.bbox)) {
+              item.isRotational = true;
+              item.shape = 'cylinder';
+            }
 
-          res.push(item); // TODO: clone base properties!
+            if (item.isRotational) {
+              item.radius = (bbox.maxX-bbox.minX)/2;
+            }
+
+            if (geometries[j].inner) {
+              item.holes = geometries[j].inner;
+            }
+
+            item.id = feature.id || feature.properties.id || [item.footprint[0], item.footprint[1], item.height, item.minHeight].join(',');
+
+            if (feature.properties.relationId) {
+              item.relationId = feature.properties.relationId;
+            }
+
+            item.hitColor = HitAreas.idToColor(item.relationId || item.id);
+
+            res.push(item); // TODO: clone base properties!
+          }
         }
       }
 
@@ -517,6 +596,9 @@ var GeoJSON = (function() {
   };
 }());
 
+//    // TODO: simplify on backend
+//    footprint = simplifyPolygon(footprint);
+
 
 //****** file: variables.js ******
 
@@ -524,7 +606,7 @@ var
   VERSION      = '0.2.2b',
   ATTRIBUTION  = '&copy; <a href="http://osmbuildings.org">OSM Buildings</a>',
 
-  DATA_KEY = 'rkc8ywdl',
+  DATA_KEY = 'anonymous',
 
   PI         = Math.PI,
   HALF_PI    = PI/2,
@@ -552,8 +634,8 @@ var
   ALT_COLOR_STR  = ''+ ALT_COLOR,
   ROOF_COLOR_STR = ''+ ROOF_COLOR,
 
-  PIXEL_PER_DEG = 0,
   ZOOM_FACTOR = 1,
+  ZOOM_SCALE = 1,
 
   MAX_HEIGHT, // taller buildings will be cut to this
   DEFAULT_HEIGHT = 5,
@@ -563,7 +645,7 @@ var
   isZooming;
 
 
-//****** file: geometry.js ******
+//****** file: functions.js ******
 
 
 function getDistance(p1, p2) {
@@ -572,146 +654,6 @@ function getDistance(p1, p2) {
     dy = p1.y-p2.y;
   return dx*dx + dy*dy;
 }
-
-function isRotational(polygon) {
-  var length = polygon.length;
-  if (length < 16) {
-    return false;
-  }
-
-  var i;
-
-  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (i = 0; i < length-1; i+=2) {
-    minX = Math.min(minX, polygon[i]);
-    maxX = Math.max(maxX, polygon[i]);
-    minY = Math.min(minY, polygon[i+1]);
-    maxY = Math.max(maxY, polygon[i+1]);
-  }
-
-  var
-    width = maxX-minX,
-    height = (maxY-minY),
-    ratio = width/height;
-
-  if (ratio < 0.85 || ratio > 1.15) {
-    return false;
-  }
-
-  var
-    center = { x:minX+width/2, y:minY+height/2 },
-    radius = (width+height)/4,
-    sqRadius = radius*radius;
-
-  for (i = 0; i < length-1; i+=2) {
-    var dist = getDistance({ x:polygon[i], y:polygon[i+1] }, center);
-    if (dist/sqRadius < 0.8 || dist/sqRadius > 1.2) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function getSquareSegmentDistance(px, py, p1x, p1y, p2x, p2y) {
-  var
-    dx = p2x-p1x,
-    dy = p2y-p1y,
-    t;
-  if (dx !== 0 || dy !== 0) {
-    t = ((px-p1x) * dx + (py-p1y) * dy) / (dx*dx + dy*dy);
-    if (t > 1) {
-      p1x = p2x;
-      p1y = p2y;
-    } else if (t > 0) {
-      p1x += dx*t;
-      p1y += dy*t;
-    }
-  }
-  dx = px-p1x;
-  dy = py-p1y;
-  return dx*dx + dy*dy;
-}
-
-function simplifyPolygon(buffer) {
-  var
-    sqTolerance = 2,
-    len = buffer.length/2,
-    markers = new Uint8Array(len),
-
-    first = 0, last = len-1,
-
-    i,
-    maxSqDist,
-    sqDist,
-    index,
-    firstStack = [], lastStack  = [],
-    newBuffer  = [];
-
-  markers[first] = markers[last] = 1;
-
-  while (last) {
-    maxSqDist = 0;
-    for (i = first+1; i < last; i++) {
-      sqDist = getSquareSegmentDistance(
-        buffer[i    *2], buffer[i    *2 + 1],
-        buffer[first*2], buffer[first*2 + 1],
-        buffer[last *2], buffer[last *2 + 1]
-      );
-      if (sqDist > maxSqDist) {
-        index = i;
-        maxSqDist = sqDist;
-      }
-    }
-
-    if (maxSqDist > sqTolerance) {
-      markers[index] = 1;
-
-      firstStack.push(first);
-      lastStack.push(index);
-
-      firstStack.push(index);
-      lastStack.push(last);
-    }
-
-    first = firstStack.pop();
-    last = lastStack.pop();
-  }
-
-  for (i = 0; i < len; i++) {
-    if (markers[i]) {
-      newBuffer.push(buffer[i*2], buffer[i*2 + 1]);
-    }
-  }
-
-  return newBuffer;
-}
-
-function getCenter(footprint) {
-  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (var i = 0, il = footprint.length-3; i < il; i += 2) {
-    minX = min(minX, footprint[i]);
-    maxX = max(maxX, footprint[i]);
-    minY = min(minY, footprint[i+1]);
-    maxY = max(maxY, footprint[i+1]);
-  }
-  return { x:minX+(maxX-minX)/2 <<0, y:minY+(maxY-minY)/2 <<0 };
-}
-
-var EARTH_RADIUS = 6378137;
-
-function getLonDelta(footprint) {
-  var minLon = 180, maxLon = -180;
-  for (var i = 0, il = footprint.length; i < il; i += 2) {
-    minLon = min(minLon, footprint[i+1]);
-    maxLon = max(maxLon, footprint[i+1]);
-  }
-  return (maxLon-minLon)/2;
-}
-
-
-//****** file: functions.js ******
-
 
 function rad(deg) {
   return deg * PI / 180;
@@ -746,344 +688,400 @@ function fromRange(sVal, sMin, sMax, dMin, dMax) {
   return min(max(dMin + rel*range, dMin), dMax);
 }
 
-function isVisible(polygon) {
-   var
-    maxX = WIDTH+ORIGIN_X,
-    maxY = HEIGHT+ORIGIN_Y;
+function isVisible(bbox) {
+   var viewport = {
+    minX: ORIGIN_X,
+    maxX: ORIGIN_X+WIDTH,
+    minY: ORIGIN_Y,
+    maxY: ORIGIN_Y+HEIGHT
+  };
 
   // TODO: checking footprint is sufficient for visibility - NOT VALID FOR SHADOWS!
-  for (var i = 0, il = polygon.length-3; i < il; i+=2) {
-    if (polygon[i] > ORIGIN_X && polygon[i] < maxX && polygon[i+1] > ORIGIN_Y && polygon[i+1] < maxY) {
-      return true;
-    }
-  }
-  return false;
+  return (
+    intersects(bbox.minX, bbox.minY, viewport) ||
+    intersects(bbox.maxX, bbox.minY, viewport) ||
+    intersects(bbox.maxX, bbox.maxY, viewport) ||
+    intersects(bbox.minX, bbox.maxY, viewport)
+  );
+}
+
+function intersects(x, y, bbox) {
+  return (x > bbox.minX && x < bbox.maxX && y > bbox.minY && y < bbox.maxY);
 }
 
 
 //****** file: BLDGS.js ******
 
+var BLDGS = (function(global) {
 
-var BLDGS = (function() {
 
-  var baseURL = 'http://data.osmbuildings.org/0.2/';
+function loadJSON(url, callback) {
+  var req = new XMLHttpRequest();
 
-  var cacheData = {};
-  var cacheIndex = [];
-  var cacheSize = 0;
-  var maxCacheSize = 0;
+  req.onreadystatechange = function() {
+    if (req.readyState !== 4) {
+      return;
+    }
+    if (!req.status || req.status < 200 || req.status > 299) {
+      return;
+    }
+    if (callback && req.responseText) {
+      var json;
+      try {
+        json = JSON.parse(req.responseText);
+      } catch(ex) {}
 
-//  // http://mathiasbynens.be/notes/localstorage-pattern#comment-9
-//  var storage;
-//  try {
-//    storage = localStorage;
-//  } catch (ex) {
-//    storage = (function() {
-//      return {
-//        getItem: function() {},
-//        setItem: function() {}
-//      };
-//    }());
-//  }
-//
-//  var cacheData = JSON.parse(storage.getItem('BLDGS') || '{}');
+      callback(json);
+    }
+  };
 
-  function xhr(url, callback) {
-    if (cacheData[url]) {
-      if (callback) {
-        callback(cacheData[url]);
+  req.open('GET', url);
+  req.send(null);
+
+  return req;
+}
+
+function pattern(str, param) {
+  return str.replace(/\{(\w+)\}/g, function(tag, key) {
+    return param[key] || tag;
+  });
+}
+
+function pointIntersects(p, bbox) {
+  return (p[0] > bbox.minX && p[0] < bbox.maxX && p[1] > bbox.minY && p[1] < bbox.maxY);
+}
+
+function geometryIntersects(geometry, bbox) {
+  var i, j;
+
+  switch (geometry.type) {
+    case "Point":
+      return pointIntersects(geometry.coordinates, bbox);
+
+    case "MultiPoint":
+    case "LineString":
+      for (i = 0; i < geometry.coordinates.length; i++) {
+        if (pointIntersects(geometry.coordinates[i], bbox)) {
+          return true;
+        }
       }
+      return false;
+
+    case "MultiLineString":
+      for (i = 0; i < geometry.coordinates.length; i++) {
+        for (j = 0; j < geometry.coordinates[i].length; j++) {
+          if (pointIntersects(geometry.coordinates[i][j], bbox)) {
+            return true;
+          }
+        }
+      }
+      return false;
+
+    case "Polygon":
+      for (i = 0; i < geometry.coordinates[0].length; i++) {
+        if (pointIntersects(geometry.coordinates[0][i], bbox)) {
+          return true;
+        }
+      }
+      return false;
+
+    case "MultiPolygon":
+      for (i = 0; i < geometry.coordinates.length; i++) {
+        for (j = 0; j < geometry.coordinates[i][0].length; j++) {
+          if (pointIntersects(geometry.coordinates[i][0][j], bbox)) {
+            return true;
+          }
+        }
+      }
+      return false;
+  }
+}
+
+
+// TODO: consider using CRS EPSG:3857
+
+function BLDGS(options) {
+  options = options || {};
+
+  this.tileSize = options.tileSize || 256;
+  this.minZoom  = options.minZoom !== undefined ? options.minZoom : 14;
+  this.maxZoom  = options.maxZoom || Infinity;
+
+  this._scaleThreshold = options.scaleThreshold || 16;
+
+  var host = 'data.osmbuildings.org';
+  var path = '/0.2/'+ (options.key || 'anonymous');
+
+  this._tileURL    = options.tileURL    || 'http://{s}.'+ host + path +'/tile/{z}/{x}/{y}.json';
+  this._featureURL = options.featureURL || 'http://'    + host + path +'/feature/{id}.json';
+  this._bboxURL    = options.bboxURL    || 'http://'    + host + path +'/bbox.json?bbox={n},{e},{s},{w}';
+
+  this._isLoading = {};
+}
+
+BLDGS.ATTRIBUTION = 'Data Service &copy; <a href="http://bld.gs">BLDGS</a>';
+
+BLDGS.prototype = {
+  loadTile: function(x, y, z, callback) {
+    var s, url;
+
+    if (z < this.minZoom || z > this.maxZoom) {
+      return false;
+    }
+
+    if (z <= this._scaleThreshold) {
+      s = 'abcd'[(x+y) % 4];
+      url = pattern(this._tileURL, { s:s, x:x, y:y, z:z });
+      return this._load(url, callback);
+    }
+
+    var scale = Math.pow(2, z-this._scaleThreshold);
+    x /= scale;
+    y /= scale;
+    z = this._scaleThreshold;
+
+    s = 'abcd'[(x+y) % 4];
+    url = pattern(this._tileURL, { s:s, x:x, y:x, z:z });
+    return this._load(url, function(x, y, z, data) {
+      var min = pixelToGeo(x, y);
+      var max = pixelToGeo(x+this.tileSize, y+this.tileSize);
+      var bbox = {
+        minX: min.longitude,
+        maxX: max.longitude,
+        minY: min.latitude,
+        maxY: max.latitude
+      };
+
+      if (data.features) {
+        data.features = data.features.filter(function(feature) {
+          return geometryIntersects(feature.geometry, bbox);
+        });
+      }
+
+      if (data.geometries) {
+        data.geometries = data.geometries.filter(function(geometry) {
+          return geometryIntersects(geometry, bbox);
+        });
+      }
+
+      callback(x, y, z, data);
+    });
+  },
+
+  loadFeature: function(id, callback) {
+    var url = pattern(this._featureURL, { id:id });
+    return this._load(url, callback);
+  },
+
+  loadBBox: function(n, e, s, w, callback) {
+    var url = pattern(this._bboxURL, { n:n.toFixed(5), e:e.toFixed(5), s:s.toFixed(5), w:w.toFixed(5) });
+    return this._load(url, callback);
+  },
+
+  abortAll: function() {
+    for (var url in this._isLoading) {
+      if (this._isLoading.hasOwnProperty(url)) {
+        this._isLoading[url].abort();
+      }
+    }
+  },
+
+  destroy: function() {
+    this.abortAll();
+  },
+
+  _load: function(url, callback) {
+    if (this._isLoading[url]) {
       return;
     }
 
-    var req = new XMLHttpRequest();
+    var self = this;
+    this._isLoading[url] = loadJSON(url, function(data) {
+      delete self._isLoading[url];
+      callback(data);
+    });
 
-    req.onreadystatechange = function() {
-      if (req.readyState !== 4) {
-        return;
-      }
-      if (!req.status || req.status < 200 || req.status > 299) {
-        return;
-      }
-      if (callback && req.responseText) {
-        var json;
-        try {
-          json = JSON.parse(req.responseText);
-        } catch(ex) {}
-
-        cacheData[url] = json;
-        cacheIndex.push({ url: url, size: req.responseText.length });
-        cacheSize += req.responseText.length;
-
-        while (cacheSize > maxCacheSize) {
-          var item = cacheIndex.shift();
-          cacheSize -= item.size;
-          delete cacheData[item.url];
-        }
-
-//  try {
-//    storage.setItem('BLDGS', JSON.stringify(cacheData));
-//  } catch(ex) {}
-
-        callback(json);
-      }
-    };
-
-    req.open('GET', url);
-    req.send(null);
-
-    return req;
+    return this._isLoading[url];
   }
+};
 
-  function getDistance(a, b) {
-    var dx = a.x-b.x, dy = a.y-b.y;
-    return dx*dx + dy*dy;
-  }
-
-  function BLDGS(options) {
-    options = options || {};
-    baseURL += (options.key || 'anonymous');
-    maxCacheSize = options.cacheSize || 1024*1024; // 1MB
-  }
-
-  BLDGS.TILE_SIZE = 256;
-  BLDGS.ATTRIBUTION = 'Data Service &copy; <a href="http://bld.gs">BLD.GS</a>';
-
-  var proto = BLDGS.prototype;
-
-  proto.getTile = function(x, y, zoom, callback) {
-    var url = baseURL +'/tile/'+ zoom +'/'+ x +'/'+ y +'.json';
-    return xhr(url, callback);
-  };
-
-  proto.getFeature = function(id, callback) {
-    var url = baseURL +'/feature/'+ id +'.json';
-    return xhr(url, callback);
-  };
-
-  proto.getBBox = function(bbox, callback) {
-    var url = baseURL +'/bbox.json?bbox='+ [bbox.n.toFixed(5),bbox.e.toFixed(5),bbox.s.toFixed(5),bbox.w.toFixed(5)].join(',');
-    return xhr(url, callback);
-  };
-
-  proto.getAllTiles = function(x, y, w, h, zoom, callback) {
-    var
-      tileSize = BLDGS.TILE_SIZE,
-      fixedZoom = 16,
-      realTileSize = zoom > fixedZoom ? tileSize <<(zoom-fixedZoom) : tileSize >>(fixedZoom-zoom),
-      minX = x/realTileSize <<0,
-      minY = y/realTileSize <<0,
-      maxX = Math.ceil((x+w)/realTileSize),
-      maxY = Math.ceil((y+h)/realTileSize),
-      tx, ty,
-      queue = [];
-
-    for (ty = minY; ty <= maxY; ty++) {
-      for (tx = minX; tx <= maxX; tx++) {
-        queue.push({ x:tx, y:ty, z:fixedZoom });
-      }
-    }
-
-    var center = { x: x+(w-tileSize)/2, y: y+(h-tileSize)/2 };
-		queue.sort(function(a, b) {
-			return getDistance(a, center) - getDistance(b, center);
-		});
-
-		for (var i = 0, il = queue.length; i < il; i++) {
-      this.getTile(queue[i].x, queue[i].y, queue[i].z, callback);
-		}
-
-    return {
-      abort: function() {
-        for (var i = 0; i < queue.length; i++) {
-          queue[i].abort();
-        }
-      }
-    };
-  };
-
-  return BLDGS;
-
-}());
-
+return BLDGS; }(this));
 
 //****** file: Data.js ******
 
 
 var Data = {
 
-  loadedItems: {}, // maintain a list of cached items in order to avoid duplicates on tile borders
+  tiles: {},
+  duplicates: {}, // maintain a list of items in order to avoid duplicates on tile borders
   items: [],
 
-  getPixelFootprint: function(buffer) {
-    var footprint = new Int32Array(buffer.length),
-      px;
+  init: function(provider) {
+    this.provider = provider || new BLDGS({ key: DATA_KEY });
+    this.update();
+  },
 
-    for (var i = 0, il = buffer.length-1; i < il; i+=2) {
-      px = geoToPixel(buffer[i], buffer[i+1]);
-      footprint[i]   = px.x;
-      footprint[i+1] = px.y;
-    }
+//  set: function(data) {
+//    this.isStatic = true;
+//    this.items = [];
+//    this.duplicates = {};
+//    HitAreas.reset();
+//    this._staticData = data;
+//    this.addRenderItems(this._staticData, true);
+//  },
 
-    footprint = simplifyPolygon(footprint);
-    if (footprint.length < 8) { // 3 points & end==start (*2)
+  update: function() {
+    this.items = [];
+    this.duplicates = {};
+    HitAreas.reset();
+    this.provider.abortAll();
+
+    if (ZOOM < MIN_ZOOM) {
       return;
     }
 
-    return footprint;
+//    if (this.isStatic && this._staticData) {
+//      this.addRenderItems(this._staticData);
+//      return;
+//    }
+
+    var
+      tileSize = this.provider.tileSize,
+      minX = ORIGIN_X/tileSize <<0,
+      minY = ORIGIN_Y/tileSize <<0,
+      maxX = ceil((ORIGIN_X+WIDTH) /tileSize),
+      maxY = ceil((ORIGIN_Y+HEIGHT)/tileSize),
+      x, y;
+
+    var self = this;
+    var key;
+
+    var processTiles = function() {
+      self.processTiles();
+    };
+
+    var cacheAndProcess = function(data) {
+      return function(key, data) {
+        if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
+        self.tiles[ZOOM][key] = GeoJSON.import(data);
+        self.processTiles();
+      };
+    };
+
+    this.provider.getTile(x, y, ZOOM, (function(key) {
+      return function(data) {
+        if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
+        self.tiles[ZOOM][key] = GeoJSON.import(data);
+        self.processTiles();
+      };
+    }([x, y].join(','))));
+
+
+    for (y = minY; y <= maxY; y++) {
+      for (x = minX; x <= maxX; x++) {
+        key = [x, y].join(',');
+        if (this.tiles[ZOOM] && this.tiles[ZOOM][key]) {
+          setTimeout(processTiles, 1);
+          continue;
+        }
+
+        this.provider.getTile(x, y, ZOOM, cacheAndProcess);
+      }
+    }
+
+    this.dropInvisibleTiles();
   },
 
-  resetItems: function() {
-    this.items = [];
-    this.loadedItems = {};
-    HitAreas.reset();
-  },
-
-  addRenderItems: function(data, allAreNew) {
-    var item, scaledItem, id;
-    var geojson = GeoJSON.read(data);
-    for (var i = 0, il = geojson.length; i < il; i++) {
-      item = geojson[i];
-      id = item.id || [item.footprint[0], item.footprint[1], item.height, item.minHeight].join(',');
-      if (!this.loadedItems[id]) {
-        if ((scaledItem = this.scale(item))) {
-          scaledItem.scale = allAreNew ? 0 : 1;
-          this.items.push(scaledItem);
-          this.loadedItems[id] = 1;
+  processTiles: function() {
+    var tiles = this.tiles[ZOOM], items;
+    for (var key in tiles) {
+      if (tiles.hasOwnProperty(key)) {
+        items = tiles[key];
+        for (var i = 0, il = items.length; i < il; i++) {
+          if (!this.duplicates[items[i].id]) {
+//          items[i].scale = allAreNew ? 0 : 1;
+            this.items.push(items[i]);
+            this.duplicates[items[i].id] = 1;
+          }
         }
       }
     }
     fadeIn();
   },
 
-  scale: function(item) {
+  dropInvisibleTiles: function() {
+    for (var zoom in this.tiles) {
+      if (zoom !== ZOOM) {
+        this.tiles[zoom] = []; // not deleting - for performance
+      }
+    }
+
+    var tileSize = this.provider.tileSize;
+    var viewport = {
+      minX: ORIGIN_X,
+      maxX: ORIGIN_X+WIDTH,
+      minY: ORIGIN_Y,
+      maxY: ORIGIN_Y+HEIGHT
+    };
+
     var
-      res = {},
-      // TODO: calculate this on zoom change only
-      zoomScale = 6 / pow(2, ZOOM-MIN_ZOOM); // TODO: consider using HEIGHT / (global.devicePixelRatio || 1)
+      zoomTiles = this.tiles[ZOOM],
+      pos, x, y;
 
-    if (item.id) {
-      res.id = item.id;
-    }
+    for (var key in zoomTiles) {
+      if (zoomTiles.hasOwnProperty(key)) {
+        pos = key.split(',');
+        x = pos.x*tileSize;
+        y = pos.y*tileSize;
 
-    res.height = min(item.height/zoomScale, MAX_HEIGHT);
-
-    res.minHeight = isNaN(item.minHeight) ? 0 : item.minHeight / zoomScale;
-    if (res.minHeight > MAX_HEIGHT) {
-      return;
-    }
-
-    res.footprint = this.getPixelFootprint(item.footprint);
-    if (!res.footprint) {
-      return;
-    }
-    res.center = getCenter(res.footprint);
-
-    if (item.radius) {
-      res.radius = item.radius*PIXEL_PER_DEG;
-    }
-    if (item.shape) {
-      res.shape = item.shape;
-    }
-    if (item.roofShape) {
-      res.roofShape = item.roofShape;
-    }
-    if ((res.roofShape === 'cone' || res.roofShape === 'dome') && !res.shape && isRotational(res.footprint)) {
-      res.shape = 'cylinder';
-    }
-
-    if (item.holes) {
-      res.holes = [];
-      var innerFootprint;
-      for (var i = 0, il = item.holes.length; i < il; i++) {
-        // TODO: simplify
-        if ((innerFootprint = this.getPixelFootprint(item.holes[i]))) {
-          res.holes.push(innerFootprint);
+        if (!intersects(x,          y,          viewport) &&
+            !intersects(x+tileSize, y,          viewport) &&
+            !intersects(x,          y+tileSize, viewport) &&
+            !intersects(x+tileSize, y+tileSize, viewport)
+        ) {
+          zoomTiles[key] = null; // not deleting - for performance
         }
-      }
-    }
-
-    var color;
-
-    if (item.wallColor) {
-      if ((color = Color.parse(item.wallColor))) {
-        color = color.alpha(ZOOM_FACTOR);
-        res.altColor  = ''+ color.lightness(0.8);
-        res.wallColor = ''+ color;
-      }
-    }
-
-    if (item.roofColor) {
-      if ((color = Color.parse(item.roofColor))) {
-        res.roofColor = ''+ color.alpha(ZOOM_FACTOR);
-      }
-    }
-
-    if (item.relationId) {
-      res.relationId = item.relationId;
-    }
-    res.hitColor = HitAreas.idToColor(item.relationId || item.id);
-
-    res.roofHeight = isNaN(item.roofHeight) ? 0 : item.roofHeight/zoomScale;
-
-    if (res.height+res.roofHeight <= res.minHeight) {
-      return;
-    }
-
-    return res;
-  },
-
-  set: function(data) {
-    this.isStatic = true;
-    this.resetItems();
-    this._staticData = data;
-    this.addRenderItems(this._staticData, true);
-  },
-
-  load: function(provider) {
-    this.provider = provider || new BLDGS({ key: DATA_KEY });
-    this.update();
-  },
-
-  update: function() {
-    this.resetItems();
-
-    if (ZOOM < MIN_ZOOM) {
-      return;
-    }
-
-    if (this.isStatic && this._staticData) {
-      this.addRenderItems(this._staticData);
-      return;
-    }
-
-    if (!this.provider) {
-      return;
-    }
-
-    var
-      tileZoom = 16,
-      tileSize = 256,
-      zoomedTileSize = ZOOM > tileZoom ? tileSize <<(ZOOM-tileZoom) : tileSize >>(tileZoom-ZOOM),
-      minX = ORIGIN_X/zoomedTileSize <<0,
-      minY = ORIGIN_Y/zoomedTileSize <<0,
-      maxX = ceil((ORIGIN_X+WIDTH) /zoomedTileSize),
-      maxY = ceil((ORIGIN_Y+HEIGHT)/zoomedTileSize),
-      x, y;
-
-    var scope = this;
-    function callback(json) {
-      scope.addRenderItems(json);
-    }
-
-    for (y = minY; y <= maxY; y++) {
-      for (x = minX; x <= maxX; x++) {
-        this.provider.getTile(x, y, tileZoom, callback);
       }
     }
   }
 };
 
+/***
+function distance(a, b) {
+  var dx = a.x-b.x, dy = a.y-b.y;
+  return dx*dx + dy*dy;
+}
+
+var loadTilesForBBox = function(x, y, w, h, z, callback) {
+  var
+    tileSize = this._scale(z),
+    minX = x/tileSize <<0,
+    minY = y/tileSize <<0,
+    maxX = Math.ceil((x+w)/tileSize),
+    maxY = Math.ceil((y+h)/tileSize),
+    tx, ty,
+    queue = [];
+
+  for (ty = minY; ty <= maxY; ty++) {
+    for (tx = minX; tx <= maxX; tx++) {
+      queue.push({ x:tx, y:ty, z:z });
+    }
+  }
+
+  var center = { x: x+(w-tileSize)/2, y: y+(h-tileSize)/2 };
+  queue.sort(function(a, b) {
+    return distance(a, center) - distance(b, center);
+  });
+
+  for (var i = 0, il = queue.length; i < il; i++) {
+    this.loadTile(queue[i].x, queue[i].y, queue[i].z, (function(tile) {
+      return function(data) {
+        callback(data, tile.x, tile.y, tile.z);
+      };
+    }(queue[i])));
+  }
+};
+***/
 
 //****** file: Block.js ******
 
@@ -1646,7 +1644,7 @@ var Buildings = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 
@@ -1716,7 +1714,7 @@ var Simplified = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 
@@ -1797,7 +1795,7 @@ var Shadows = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 
@@ -1839,7 +1837,7 @@ var Shadows = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 
@@ -1919,7 +1917,7 @@ var HitAreas = {
 
       footprint = item.footprint;
 
-      if (!isVisible(footprint)) {
+      if (!isVisible(item.bbox)) {
         continue;
       }
 
@@ -2173,11 +2171,7 @@ function setZoom(z) {
   ZOOM = z;
   MAP_SIZE = MAP_TILE_SIZE <<ZOOM;
 
-  var center = pixelToGeo(ORIGIN_X+CENTER_X, ORIGIN_Y+CENTER_Y);
-  var a = geoToPixel(center.latitude, 0);
-  var b = geoToPixel(center.latitude, 1);
-  PIXEL_PER_DEG = b.x-a.x;
-
+  ZOOM_SCALE = 6 / pow(2, ZOOM-MIN_ZOOM); // TODO: consider using HEIGHT / (global.devicePixelRatio || 1)
   ZOOM_FACTOR = pow(0.95, ZOOM-MIN_ZOOM);
 
   WALL_COLOR_STR = ''+ WALL_COLOR.alpha(ZOOM_FACTOR);
