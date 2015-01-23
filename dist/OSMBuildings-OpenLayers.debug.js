@@ -710,7 +710,7 @@ function intersects(x, y, bbox) {
 }
 
 
-//****** file: BLDGS.js ******
+//****** file: BLDGS.debug.js ******
 
 var BLDGS = (function(global) {
 
@@ -916,11 +916,6 @@ var Data = {
   duplicates: {}, // maintain a list of items in order to avoid duplicates on tile borders
   items: [],
 
-  init: function(provider) {
-    this.provider = provider || new BLDGS({ key: DATA_KEY });
-    this.update();
-  },
-
 //  set: function(data) {
 //    this.isStatic = true;
 //    this.items = [];
@@ -933,7 +928,7 @@ var Data = {
   update: function() {
     this.items = [];
     this.duplicates = {};
-    HitAreas.reset();
+//    HitAreas.reset();
     this.provider.abortAll();
 
     if (ZOOM < MIN_ZOOM) {
@@ -955,19 +950,6 @@ var Data = {
 
     var self = this;
     var key;
-
-    var processTiles = function() {
-      self.processTiles();
-    };
-
-    var cacheAndProcess = function(data) {
-      return function(key, data) {
-        if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
-        self.tiles[ZOOM][key] = GeoJSON.import(data);
-        self.processTiles();
-      };
-    };
-
     this.provider.getTile(x, y, ZOOM, (function(key) {
       return function(data) {
         if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
@@ -976,16 +958,21 @@ var Data = {
       };
     }([x, y].join(','))));
 
-
     for (y = minY; y <= maxY; y++) {
       for (x = minX; x <= maxX; x++) {
         key = [x, y].join(',');
         if (this.tiles[ZOOM] && this.tiles[ZOOM][key]) {
-          setTimeout(processTiles, 1);
+          this.processTiles();
           continue;
         }
 
-        this.provider.getTile(x, y, ZOOM, cacheAndProcess);
+        this.provider.getTile(x, y, ZOOM, (function(key) {
+          return function(data) {
+            if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
+            self.tiles[ZOOM][key] = GeoJSON.import(data);
+            self.processTiles();
+          };
+        }(key)));
       }
     }
 
@@ -1082,6 +1069,10 @@ var loadTilesForBBox = function(x, y, w, h, z, callback) {
   }
 };
 ***/
+
+Data.provider = new BLDGS({ key: DATA_KEY });
+Data.update();
+
 
 //****** file: Block.js ******
 

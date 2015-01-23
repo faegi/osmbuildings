@@ -18,7 +18,7 @@ exports.srcFiles = [
   srcPath + '/GeoJSON.js',
   srcPath + '/variables.js',
   srcPath + '/functions.js',
-  srcPath + '../node_modules/bldgs-provider/dist/BLDGS.debug.js',
+  srcPath + '/../node_modules/bldgs-provider/dist/BLDGS.debug.js',
   srcPath + '/Data.js',
   srcPath + '/geometry/Block.js',
   srcPath + '/geometry/Cylinder.js',
