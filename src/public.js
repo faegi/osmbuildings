@@ -34,7 +34,12 @@ proto.date = function(date) {
 };
 
 proto.load = function(url) {
-  Data.load(url);
+  var options = { key: DATA_KEY };
+  if (url) {
+    options.tileUrl = url;
+  }
+  Data.provider = new BLDGS(options);
+  Data.update();
   return this;
 };
 

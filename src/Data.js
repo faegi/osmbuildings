@@ -5,11 +5,6 @@ var Data = {
   duplicates: {}, // maintain a list of items in order to avoid duplicates on tile borders
   items: [],
 
-  init: function(provider) {
-    this.provider = provider || new BLDGS({ key: DATA_KEY });
-    this.update();
-  },
-
 //  set: function(data) {
 //    this.isStatic = true;
 //    this.items = [];
@@ -23,7 +18,6 @@ var Data = {
     this.items = [];
     this.duplicates = {};
     HitAreas.reset();
-    this.provider.abortAll();
 
     if (ZOOM < MIN_ZOOM) {
       return;
@@ -33,6 +27,12 @@ var Data = {
 //      this.addRenderItems(this._staticData);
 //      return;
 //    }
+
+    if (!this.provider) {
+      return;
+    }
+
+    this.provider.abortAll();
 
     var
       tileSize = this.provider.tileSize,
@@ -48,18 +48,17 @@ var Data = {
       for (x = minX; x <= maxX; x++) {
         key = [x, y].join(',');
         if (this.tiles[ZOOM] && this.tiles[ZOOM][key]) {
-          setTimeout(function() {
-            self.processTiles();
-          }, 1);
+					setTimeout(this.processTiles.bind(this), 1);
           continue;
         }
 
-        this.provider.getTile(x, y, ZOOM, function(data) {
-          var key = [x, y].join(',');
-          if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
-          self.tiles[ZOOM][key] = GeoJSON.import(data);
-          self.processTiles();
-        });
+        this.provider.loadTile(x, y, ZOOM, (function(key) {
+          return function(data) {
+            if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
+            self.tiles[ZOOM][key] = GeoJSON.import(data);
+            self.processTiles();
+          };
+        }(key)));
       }
     }
 
@@ -100,7 +99,6 @@ var Data = {
       tiles = this.tiles[ZOOM],
       pos, x, y;
     for (var key in tiles) {
-      tile = tiles[key];
       pos = key.split(',');
       x = pos.x*tileSize;
       y = pos.y*tileSize;
@@ -110,7 +108,7 @@ var Data = {
           !intersects(x,          y+tileSize, viewport) &&
           !intersects(x+tileSize, y+tileSize, viewport)
       ) {
-        this.tiles[ZOOM][key] = null; // not deleting - for performance
+        tiles[key] = null; // no delete - for performance
       }
     }
   }
