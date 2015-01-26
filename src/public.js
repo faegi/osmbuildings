@@ -76,7 +76,7 @@ proto.click = function(handler) {
 
 proto.getDetails = function(id, handler) {
   if (Data.provider) {
-    Data.provider.getFeature(id, handler);
+    Data.provider.loadFeature(id, handler);
   }
   return this;
 };

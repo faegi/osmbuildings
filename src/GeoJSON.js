@@ -130,7 +130,7 @@ var GeoJSON = (function() {
 
   function getGeometries(geometry) {
     var
-      i, il, polygon,
+      i, il, polygons,
       geometries = [], sub;
 
     switch (geometry.type) {
@@ -153,18 +153,18 @@ var GeoJSON = (function() {
         return geometries;
 
       case 'Polygon':
-        polygon = geometry.coordinates;
+        polygons = geometry.coordinates;
       break;
 
       default: return [];
     }
 
-    var outer = projectPolygon(polygon[0]);
+    var outer = projectPolygon(polygons[0]);
 
     if (outer) {
       var inner = [];
-      for (i = 1, il = polygon.length; i < il; i++) {
-        inner[i] = projectPolygon(polygon[i]);
+      for (i = 1, il = polygons.length; i < il; i++) {
+        inner[i-1] = projectPolygon(polygons[i]);
       }
 
       return [{
@@ -175,10 +175,11 @@ var GeoJSON = (function() {
   }
 
   function projectPolygon(polygon) {
-    var res = new Int32Array(polygon.length), px;
+    var res = new Int32Array(polygon.length), p;
     for (var i = 0, il = polygon.length; i < il; i++) {
-      px = geoToPixel(polygon[i][1], polygon[i][0]);
-      res.push(px.x, px.y);
+      p = geoToPixel(polygon[i][1], polygon[i][0]);
+      res[i*2]   = p.x;
+      res[i*2+1] = p.y;
     }
 
     if (res.length < 8) { // 3 points & end = start (*2)
@@ -219,15 +220,15 @@ var GeoJSON = (function() {
     return true;
   }
 
-  function getBBox(footprint) {
+  function getBBox(polygon) {
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (var i = 0, il = footprint.length-3; i < il; i += 2) {
-      minX = min(minX, footprint[i]);
-      maxX = max(maxX, footprint[i]);
-      minY = min(minY, footprint[i+1]);
-      maxY = max(maxY, footprint[i+1]);
+    for (var i = 0, il = polygon.length-3; i < il; i += 2) {
+      minX = min(minX, polygon[i]);
+      maxX = max(maxX, polygon[i]);
+      minY = min(minY, polygon[i+1]);
+      maxY = max(maxY, polygon[i+1]);
     }
-    return { x:minX+(maxX-minX)/2 <<0, y:minY+(maxY-minY)/2 <<0 };
+    return { minX:minX, maxX:maxX, minY:minY, maxY:maxY };
   }
 
   function clone(obj) {

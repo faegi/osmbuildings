@@ -48,13 +48,17 @@ var Data = {
       for (x = minX; x <= maxX; x++) {
         key = [x, y].join(',');
         if (this.tiles[ZOOM] && this.tiles[ZOOM][key]) {
-					setTimeout(this.processTiles.bind(this), 1);
+					// setTimeout(this.processTiles.bind(this), 1);
+					this.processTiles.bind(this);
           continue;
         }
 
         this.provider.loadTile(x, y, ZOOM, (function(key) {
           return function(data) {
-            if (!self.tiles[ZOOM]) self.tiles[ZOOM] = {};
+            if (!self.tiles[ZOOM]) {
+              self.tiles[ZOOM] = {};
+            }
+
             self.tiles[ZOOM][key] = GeoJSON.import(data);
             self.processTiles();
           };
@@ -62,7 +66,7 @@ var Data = {
       }
     }
 
-    this.dropInvisibleTiles();
+    //this.dropInvisibleTiles();
   },
 
   processTiles: function() {
@@ -89,24 +93,23 @@ var Data = {
 
     var tileSize = this.provider.tileSize;
     var viewport = {
-      minX: ORIGIN_X,
-      maxX: ORIGIN_X+WIDTH,
-      minY: ORIGIN_Y,
-      maxY: ORIGIN_Y+HEIGHT
+      minX:  ORIGIN_X/tileSize <<0,
+      maxX: (ORIGIN_X+WIDTH)/tileSize <<0,
+      minY:  ORIGIN_Y/tileSize <<0,
+      maxY: (ORIGIN_Y+HEIGHT)/tileSize <<0
     };
+    var tiles = this.tiles[ZOOM];
+    var pos, x, y;
 
-    var
-      tiles = this.tiles[ZOOM],
-      pos, x, y;
     for (var key in tiles) {
       pos = key.split(',');
-      x = pos.x*tileSize;
-      y = pos.y*tileSize;
+      x = pos.x;
+      y = pos.y;
 
-      if (!intersects(x,          y,          viewport) &&
-          !intersects(x+tileSize, y,          viewport) &&
-          !intersects(x,          y+tileSize, viewport) &&
-          !intersects(x+tileSize, y+tileSize, viewport)
+      if (!intersects(x,   y,   viewport) &&
+          !intersects(x+1, y,   viewport) &&
+          !intersects(x,   y+1, viewport) &&
+          !intersects(x+1, y+1, viewport)
       ) {
         tiles[key] = null; // no delete - for performance
       }
