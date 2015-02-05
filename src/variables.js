@@ -1,15 +1,11 @@
 var
-  VERSION      = /*<version=*/'0.2.2b'/*>*/,
-  ATTRIBUTION  = '&copy; <a href="http://osmbuildings.org">OSM Buildings</a>',
-
-  DATA_KEY = 'rkc8ywdl',
+  VERSION      = /*<version=*/'0.1.0'/*>*/,
 
   PI         = Math.PI,
   HALF_PI    = PI/2,
   QUARTER_PI = PI/4,
 
   MAP_TILE_SIZE  = 256,    // map tile size in pixels
-  DATA_TILE_SIZE = 0.0075, // data tile size in geo coordinates, smaller: less data to load but more requests
   ZOOM, MAP_SIZE,
 
   MIN_ZOOM = 15,
@@ -22,19 +18,13 @@ var
   CENTER_X = 0, CENTER_Y = 0,
   ORIGIN_X = 0, ORIGIN_Y = 0,
 
-  WALL_COLOR = Color.parse('rgba(200, 190, 180)'),
-  ALT_COLOR  = WALL_COLOR.lightness(0.8),
-  ROOF_COLOR = WALL_COLOR.lightness(1.2),
+  COLOR = Color.parse('rgba(200, 190, 180)'),
+  COLOR_STR = ''+ COLOR,
 
-  WALL_COLOR_STR = ''+ WALL_COLOR,
-  ALT_COLOR_STR  = ''+ ALT_COLOR,
-  ROOF_COLOR_STR = ''+ ROOF_COLOR,
-
-  PIXEL_PER_DEG = 0,
   ZOOM_FACTOR = 1,
+  ZOOM_SCALE = 1,
 
-  MAX_HEIGHT, // taller buildings will be cut to this
-  DEFAULT_HEIGHT = 5,
+  MAX_HEIGHT, // taller features will be cut to this
 
   CAM_X, CAM_Y, CAM_Z = 450,
 

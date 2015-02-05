@@ -1,137 +1,62 @@
 
 var Data = {
 
-  loadedItems: {}, // maintain a list of cached items in order to avoid duplicates on tile borders
   items: [],
 
-  getPixelFootprint: function(buffer) {
-    var footprint = new Int32Array(buffer.length),
+  getPixelCoordinates: function(coordinates) {
+    var
+      lat = 1, lon = 0, alt = 2,
+      res = [],
       px;
 
-    for (var i = 0, il = buffer.length-1; i < il; i+=2) {
-      px = geoToPixel(buffer[i], buffer[i+1]);
-      footprint[i]   = px.x;
-      footprint[i+1] = px.y;
+    for (var i = 0, il = coordinates.length; i < il; i++) {
+      px = geoToPixel(coordinates[i][lat], coordinates[i][lon]);
+      px.z = coordinates[i][alt]/ZOOM_SCALE;
+      res[i] = px;
     }
 
-    footprint = simplifyPolygon(footprint);
-    if (footprint.length < 8) { // 3 points & end==start (*2)
-      return;
-    }
-
-    return footprint;
+    return res;
   },
 
   resetItems: function() {
     this.items = [];
-    this.loadedItems = {};
-    HitAreas.reset();
   },
 
-  addRenderItems: function(data, allAreNew) {
-    var item, scaledItem, id;
+  addRenderItems: function(data) {
+    var item, scaledItem;
     var geojson = GeoJSON.read(data);
     for (var i = 0, il = geojson.length; i < il; i++) {
       item = geojson[i];
-      id = item.id || [item.footprint[0], item.footprint[1], item.height, item.minHeight].join(',');
-      if (!this.loadedItems[id]) {
-        if ((scaledItem = this.scale(item))) {
-          scaledItem.scale = allAreNew ? 0 : 1;
-          this.items.push(scaledItem);
-          this.loadedItems[id] = 1;
-        }
+      if ((scaledItem = this.scale(item))) {
+        this.items.push(scaledItem);
       }
     }
     fadeIn();
   },
 
   scale: function(item) {
-    var
-      res = {},
-      // TODO: calculate this on zoom change only
-      zoomScale = 6 / pow(2, ZOOM-MIN_ZOOM); // TODO: consider using HEIGHT / (global.devicePixelRatio || 1)
+    var res = {};
 
     if (item.id) {
       res.id = item.id;
     }
 
-    res.height = min(item.height/zoomScale, MAX_HEIGHT);
-
-    res.minHeight = isNaN(item.minHeight) ? 0 : item.minHeight / zoomScale;
-    if (res.minHeight > MAX_HEIGHT) {
-      return;
-    }
-
-    res.footprint = this.getPixelFootprint(item.footprint);
-    if (!res.footprint) {
-      return;
-    }
-    res.center = getCenter(res.footprint);
-
-    if (item.radius) {
-      res.radius = item.radius*PIXEL_PER_DEG;
-    }
-    if (item.shape) {
-      res.shape = item.shape;
-    }
-    if (item.roofShape) {
-      res.roofShape = item.roofShape;
-    }
-    if ((res.roofShape === 'cone' || res.roofShape === 'dome') && !res.shape && isRotational(res.footprint)) {
-      res.shape = 'cylinder';
-    }
-
-    if (item.holes) {
-      res.holes = [];
-      var innerFootprint;
-      for (var i = 0, il = item.holes.length; i < il; i++) {
-        // TODO: simplify
-        if ((innerFootprint = this.getPixelFootprint(item.holes[i]))) {
-          res.holes.push(innerFootprint);
-        }
-      }
-    }
+    res.coordinates = this.getPixelCoordinates(item.coordinates);
 
     var color;
-
-    if (item.wallColor) {
-      if ((color = Color.parse(item.wallColor))) {
-        color = color.alpha(ZOOM_FACTOR);
-        res.altColor  = ''+ color.lightness(0.8);
-        res.wallColor = ''+ color;
-      }
-    }
-
-    if (item.roofColor) {
-      if ((color = Color.parse(item.roofColor))) {
-        res.roofColor = ''+ color.alpha(ZOOM_FACTOR);
-      }
-    }
-
-    if (item.relationId) {
-      res.relationId = item.relationId;
-    }
-    res.hitColor = HitAreas.idToColor(item.relationId || item.id);
-
-    res.roofHeight = isNaN(item.roofHeight) ? 0 : item.roofHeight/zoomScale;
-
-    if (res.height+res.roofHeight <= res.minHeight) {
-      return;
+    if ((color = Color.parse(item.color || COLOR_STR))) {
+      color = color.alpha(ZOOM_FACTOR);
+      res.altColor = ''+ color.lightness(0.7);
+      res.color    = ''+ color;
     }
 
     return res;
   },
 
   set: function(data) {
-    this.isStatic = true;
     this.resetItems();
     this._staticData = data;
-    this.addRenderItems(this._staticData, true);
-  },
-
-  load: function(provider) {
-    this.provider = provider || new BLDGS({ key: DATA_KEY });
-    this.update();
+    this.addRenderItems(this._staticData);
   },
 
   update: function() {
@@ -141,34 +66,6 @@ var Data = {
       return;
     }
 
-    if (this.isStatic && this._staticData) {
-      this.addRenderItems(this._staticData);
-      return;
-    }
-
-    if (!this.provider) {
-      return;
-    }
-
-    var
-      tileZoom = 16,
-      tileSize = 256,
-      zoomedTileSize = ZOOM > tileZoom ? tileSize <<(ZOOM-tileZoom) : tileSize >>(tileZoom-ZOOM),
-      minX = ORIGIN_X/zoomedTileSize <<0,
-      minY = ORIGIN_Y/zoomedTileSize <<0,
-      maxX = ceil((ORIGIN_X+WIDTH) /zoomedTileSize),
-      maxY = ceil((ORIGIN_Y+HEIGHT)/zoomedTileSize),
-      x, y;
-
-    var scope = this;
-    function callback(json) {
-      scope.addRenderItems(json);
-    }
-
-    for (y = minY; y <= maxY; y++) {
-      for (x = minX; x <= maxX; x++) {
-        this.provider.getTile(x, y, tileZoom, callback);
-      }
-    }
+    this.addRenderItems(this._staticData);
   }
 };

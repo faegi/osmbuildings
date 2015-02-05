@@ -1,31 +1,7 @@
 var animTimer;
 
 function fadeIn() {
-  if (animTimer) {
-    return;
-  }
-
-  animTimer = setInterval(function() {
-    var dataItems = Data.items,
-      isNeeded = false;
-
-    for (var i = 0, il = dataItems.length; i < il; i++) {
-      if (dataItems[i].scale < 1) {
-        dataItems[i].scale += 0.5*0.2; // amount*easing
-        if (dataItems[i].scale > 1) {
-          dataItems[i].scale = 1;
-        }
-        isNeeded = true;
-      }
-    }
-
-    Layers.render();
-
-    if (!isNeeded) {
-      clearInterval(animTimer);
-      animTimer = null;
-    }
-  }, 33);
+  Layers.render();
 }
 
 var Layers = {
@@ -40,21 +16,17 @@ var Layers = {
     this.container.style.top  = 0;
 
     // TODO: improve this to .setContext(context)
-    Shadows.context    = this.createContext(this.container);
-    Simplified.context = this.createContext(this.container);
-    Buildings.context  = this.createContext(this.container);
-    HitAreas.context   = this.createContext();
-//    Debug.context      = this.createContext(this.container);
+    Shadows.context  = this.createContext(this.container);
+    Features.context = this.createContext(this.container);
+    Debug.context    = this.createContext(this.container);
   },
 
   render: function(quick) {
     requestAnimFrame(function() {
       if (!quick) {
         Shadows.render();
-        Simplified.render();
-        HitAreas.render();
       }
-      Buildings.render();
+      Features.render();
     });
   },
 

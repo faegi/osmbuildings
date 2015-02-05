@@ -1,7 +1,7 @@
 
-var osmb = function(map) {
+var osmb = function(geojson) {
   this.offset = { x:0, y:0 };
-	map.addLayer(this);
+  Data.set(geojson);
 };
 
 var proto = osmb.prototype = L.Layer ? new L.Layer() : {};
@@ -33,18 +33,11 @@ proto.onAdd = function(map) {
     map.on('zoomanim', this.onZoom, this);
   }
 
-  if (map.attributionControl) {
-    map.attributionControl.addAttribution(ATTRIBUTION);
-  }
-
   Data.update();
 };
 
 proto.onRemove = function() {
   var map = this.map;
-  if (map.attributionControl) {
-    map.attributionControl.removeAttribution(ATTRIBUTION);
-  }
 
   map.off({
     move:      this.onMove,
@@ -122,13 +115,6 @@ proto.onViewReset = function() {
   this.offset = off;
   Layers.setPosition(-off.x, -off.y);
   moveCam({ x:0, y:0 });
-};
-
-proto.onClick = function(e) {
-  var id = HitAreas.getIdFromXY(e.containerPoint.x, e.containerPoint.y);
-  if (id) {
-    onClick({ feature:id, lat:e.latlng.lat, lon:e.latlng.lng });
-  }
 };
 
 proto.getOffset = function() {

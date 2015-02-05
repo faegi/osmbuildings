@@ -3,31 +3,24 @@ var srcPath = '../src';
 var dstPath = '../dist';
 
 exports.COPYRIGHT = '/**\n' +
-                    ' * Copyright (C) 2015 OSM Buildings, Jan Marsch\n' +
-                    ' * A JavaScript library for visualizing building geometry on interactive maps.\n' +
-                    ' * @osmbuildings, http://osmbuildings.org\n' +
+                    ' * Copyright (C) 2015 Jan Marsch\n' +
+                    ' * @kekscom\n' +
                     ' */\n';
 
-exports.VERSION = '0.2.2b';
+exports.VERSION = '0.1.0';
 
 exports.srcFiles = [
   srcPath + '/prefix.js',
   srcPath + '/shortcuts.js',
   srcPath + '/../node_modules/color/dist/Color.debug.js',
-  srcPath + '/lib/SunPosition.js',
-  srcPath + '/GeoJSON.js',
   srcPath + '/variables.js',
   srcPath + '/geometry.js',
   srcPath + '/functions.js',
-  srcPath + '/provider/BLDGS.js',
+  srcPath + '/GeoJSON.js',
   srcPath + '/Data.js',
-  srcPath + '/geometry/Block.js',
-  srcPath + '/geometry/Cylinder.js',
-  srcPath + '/geometry/Pyramid.js',
-  srcPath + '/layers/Buildings.js',
-  srcPath + '/layers/Simplified.js',
+  srcPath + '/geometry/Line3.js',
+  srcPath + '/layers/Features.js',
   srcPath + '/layers/Shadows.js',
-  srcPath + '/layers/HitAreas.js',
   srcPath + '/layers/Debug.js',
   srcPath + '/Layers.js',
   srcPath + '/adapter.js',
@@ -37,17 +30,17 @@ exports.srcFiles = [
 ];
 
 exports.dstFiles = {
-  debug:    dstPath + '/OSMBuildings-{engine}.debug.js',
-  minified: dstPath + '/OSMBuildings-{engine}.js',
-  gzipped:  dstPath + '/OSMBuildings-{engine}.js.gz'
+  debug:    dstPath + '/L.Lines3.debug.js',
+  minified: dstPath + '/L.Lines3.js',
+  gzipped:  dstPath + '/L.Lines3.js.gz'
 };
 
-exports.engines = ['Leaflet', 'OpenLayers'];
+exports.engines = ['Leaflet'];
 
 exports.jshint = {
 	"browser": true,
 	"node": true,
-	"predef": ["L", "OpenLayers"],
+	"predef": ["L"],
 //"unused": true,
 
 	"debug": false,
