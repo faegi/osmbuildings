@@ -1049,19 +1049,6 @@ var Block = {
     }
   },
 
-  simplified: function(context, polygon, innerPolygons) {
-    context.beginPath();
-    this._ringAbs(context, polygon);
-    if (innerPolygons) {
-      for (var i = 0, il = innerPolygons.length; i < il; i++) {
-        this._ringAbs(context, innerPolygons[i]);
-      }
-    }
-    context.closePath();
-    context.stroke();
-    context.fill();
-  },
-
   _ringAbs: function(context, polygon) {
     context.moveTo(polygon[0], polygon[1]);
     for (var i = 2, il = polygon.length-1; i < il; i += 2) {
@@ -1230,10 +1217,6 @@ var Cylinder = {
 
     context.fillStyle = roofColor;
     this._circle(context, apex, topRadius);
-  },
-
-  simplified: function(context, center, radius) {
-    this._circle(context, { x:center.x, y:center.y }, radius);
   },
 
   shadow: function(context, center, radius, topRadius, height, minHeight) {
