@@ -511,6 +511,7 @@ var
   MAX_X = 0, MAX_Y = 0,
 
   ZOOM = MIN_ZOOM, // the scale of the map (1 : ZOOM)
+  zoomScale = 1,
 
   WALL_COLOR = Color.parse('rgba(200, 190, 180)'),
   ALT_COLOR  = WALL_COLOR.lightness(0.8),
@@ -684,6 +685,10 @@ function getRadiusFromFootprint(footprint) {
 //****** file: functions.js ******
 
 
+function calcZoomScale() {
+  return ZOOM / (0.9298460908 * ZOOM - 74.26282424 * sqrt(ZOOM) + 3233.580428);
+}
+
 // pixel to UTM
 function pixelToGeo(x, y) {
   var res = {};
@@ -838,9 +843,8 @@ var Data = {
 
   scale: function(item) {
     var
-      res = {},
+      res = {};
       // TODO: calculate this on zoom change only
-      zoomScale = ZOOM / (0.9298460908 * ZOOM - 74.26282424 * sqrt(ZOOM) + 3233.580428);
 
 /*
 ZOOM    zoomScale
@@ -1915,6 +1919,7 @@ global.osmb_setExt = function setExt(minx, miny, maxx, maxy) {
 
 global.osmb_setScale = function setScale(s) {
   ZOOM = s;
+  zoomScale = calcZoomScale();
 }
 
 //****** file: public.js ******
