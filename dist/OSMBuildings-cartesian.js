@@ -15,20 +15,8 @@
 // object access shortcuts
 var
   m = Math,
-  exp = m.exp,
-  log = m.log,
-  sin = m.sin,
-  cos = m.cos,
-  tan = m.tan,
-  atan = m.atan,
   atan2 = m.atan2,
-  min = m.min,
-  max = m.max,
-  sqrt = m.sqrt,
-  ceil = m.ceil,
-  floor = m.floor,
-  round = m.round,
-  pow = m.pow;
+  sqrt = m.sqrt;
 
 // polyfills
 
@@ -360,7 +348,7 @@ var GeoJSON = (function() {
 
     if (item.roofShape && prop.roofHeight) {
       item.roofHeight = prop.roofHeight;
-      item.height = max(0, item.height-item.roofHeight);
+      item.height = Math.max(0, item.height-item.roofHeight);
     } else {
       item.roofHeight = 0;
     }
@@ -659,10 +647,10 @@ function simplifyPolygon(buffer) {
 function getCenter(footprint) {
   var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (var i = 0, il = footprint.length-3; i < il; i += 2) {
-    minX = min(minX, footprint[i]);
-    maxX = max(maxX, footprint[i]);
-    minY = min(minY, footprint[i+1]);
-    maxY = max(maxY, footprint[i+1]);
+    minX = Math.min(minX, footprint[i]);
+    maxX = Math.max(maxX, footprint[i]);
+    minY = Math.min(minY, footprint[i+1]);
+    maxY = Math.max(maxY, footprint[i+1]);
   }
   return { x:minX+(maxX-minX)/2 <<0, y:minY+(maxY-minY)/2 <<0 };
 }
@@ -675,8 +663,8 @@ function getRadiusFromFootprint(footprint) {
       maxY = footprint[i+1];
       continue;
     }
-    minY = min(minY, footprint[i+1]);
-    maxY = max(maxY, footprint[i+1]);
+    minY = Math.min(minY, footprint[i+1]);
+    maxY = Math.max(maxY, footprint[i+1]);
   }
   return (maxY - minY) / 2;
 }
@@ -706,10 +694,10 @@ function geoToPixel(utm_y, utm_x) {
 }
 
 function fromRange(sVal, sMin, sMax, dMin, dMax) {
-  sVal = min(max(sVal, sMin), sMax);
+  sVal = Math.min(Math.max(sVal, sMin), sMax);
   var rel = (sVal-sMin) / (sMax-sMin),
     range = dMax-dMin;
-  return min(max(dMin + rel*range, dMin), dMax);
+  return Math.min(Math.max(dMin + rel*range, dMin), dMax);
 }
 
 function isVisible(polygon) {
@@ -1329,7 +1317,7 @@ var Cylinder = {
     // This is a linear equation in unknown vector n.
     // Now we're just intersecting a line with a circle: v*n=c, n*n=1
 
-    h = sqrt(max(0, 1 - c*c));
+    h = sqrt(Math.max(0, 1 - c*c));
     for (var sign = 1; sign >= -1; sign -= 2) {
       nx = vx*c - sign*h*vy;
       ny = vy*c + sign*h*vx;
